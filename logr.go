@@ -98,6 +98,8 @@ func (l *Logr) Logf(level LogLevel, format string, v ...any) {
 		colorCode, label = yellow, "[WARN]"
 	case LevelError:
 		colorCode, label = red, "[ERROR]"
+	default:
+		colorCode, label = blueish, "[INFO]"
 	}
 
 	timeStr := ""
