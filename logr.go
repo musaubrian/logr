@@ -30,12 +30,18 @@ const (
 	dimmed    = 2
 
 	labelWidth = 8
-	fileWidth  = 20
-
-	skip = 3
+	fileWidth  = 10
 )
 
-type Logr struct {
+type Logr interface {
+	Info(msg string)
+	Debug(msg string)
+	Warn(msg string)
+	Error(msg string)
+	Logf(level LogLevel, format string, v ...any)
+}
+
+type Log struct {
 	*log.Logger
 	level      LogLevel
 	timeFormat string
@@ -43,22 +49,25 @@ type Logr struct {
 	saveToFile bool
 }
 
-func New(minLevel LogLevel) *Logr {
-	return &Logr{
+func New(minLevel ...LogLevel) *Log {
+	if len(minLevel) == 0 {
+		minLevel = append(minLevel, LevelInfo)
+	}
+	return &Log{
 		Logger:     log.New(os.Stdout, "", 0),
-		level:      minLevel,
+		level:      minLevel[0],
 		timeFormat: "",
 		saveToFile: false,
 	}
 }
 
 // Pass in a time format else defaults to `2006-01-02 15:04:05`
-func (l *Logr) WithTime(format ...string) *Logr {
+func (l *Log) WithTime(format ...string) *Log {
 	if len(format) == 0 {
 		format = append(format, "2006-01-02 15:04:05")
 	}
 
-	return &Logr{
+	return &Log{
 		Logger:     l.Logger,
 		level:      l.level,
 		timeFormat: format[0],
@@ -66,16 +75,7 @@ func (l *Logr) WithTime(format ...string) *Logr {
 	}
 }
 
-func (l *Logr) WithFile() *Logr {
-	return &Logr{
-		Logger:     l.Logger,
-		level:      l.level,
-		timeFormat: l.timeFormat,
-		saveToFile: false,
-	}
-}
-
-func (l *Logr) log(level LogLevel, colorCode int, label string, msg string) {
+func (l *Log) log(level LogLevel, colorCode int, label string, msg string) {
 	if level < l.level {
 		return
 	}
@@ -88,7 +88,7 @@ func (l *Logr) log(level LogLevel, colorCode int, label string, msg string) {
 	paddedLabel := padLabel(label)
 	paddedTime := l.padTime(timeStr)
 
-	fileStr := getFileInfo()
+	fileStr := getFileInfo(3)
 
 	l.Printf("%s%s %s%s",
 		bold(colorize(colorCode, paddedLabel)),
@@ -97,23 +97,23 @@ func (l *Logr) log(level LogLevel, colorCode int, label string, msg string) {
 		msg)
 }
 
-func (l *Logr) Info(msg string) {
+func (l *Log) Info(msg string) {
 	l.log(LevelInfo, blueish, "[INFO]", msg)
 }
 
-func (l *Logr) Debug(msg string) {
+func (l *Log) Debug(msg string) {
 	l.log(LevelDebug, dimmed, "[DEBUG]", msg)
 }
 
-func (l *Logr) Warn(msg string) {
+func (l *Log) Warn(msg string) {
 	l.log(LevelWarn, yellow, "[WARN]", msg)
 }
 
-func (l *Logr) Error(msg string) {
+func (l *Log) Error(msg string) {
 	l.log(LevelError, red, "[ERROR]", msg)
 }
 
-func (l *Logr) Logf(level LogLevel, format string, v ...any) {
+func (l *Log) Logf(level LogLevel, format string, v ...any) {
 	if level < l.level {
 		return
 	}
@@ -142,19 +142,21 @@ func (l *Logr) Logf(level LogLevel, format string, v ...any) {
 	paddedLabel := padLabel(label)
 	paddedTime := l.padTime(timeStr)
 
-	l.Printf("%s%s%s",
+	fileStr := getFileInfo(2)
+
+	l.Printf("%s%s %s%s",
 		bold(colorize(colorCode, paddedLabel)),
+		colorize(darkGray, fileStr),
 		colorize(darkGray, paddedTime),
 		fmt.Sprintf(colorize(lightGray, format), v...))
 }
-
-func getFileInfo() string {
+func getFileInfo(skip int) string {
 	_, file, line, ok := runtime.Caller(skip)
 	if !ok {
-		return "???:0"
+		return fmt.Sprintf("%-*s", fileWidth, "???:0")
 	}
 	file = filepath.Base(file)
-	return fmt.Sprintf("%s:%d", file, line)
+	return fmt.Sprintf("%-*s", fileWidth, fmt.Sprintf("%s:%d", file, line))
 }
 
 func bold(v string) string {
@@ -164,23 +166,15 @@ func bold(v string) string {
 func colorize(colorCode int, v string) string {
 	return fmt.Sprintf("\033[%sm%s%s", strconv.Itoa(colorCode), v, reset)
 }
-
 func padLabel(label string) string {
-	visibleLen := len(label)
-	padding := strings.Repeat(" ", (len(label)+1)-visibleLen)
-	return label + padding
+	return fmt.Sprintf("%-*s", labelWidth, label)
 }
 
-func (l *Logr) padTime(timeStr string) string {
-	if timeStr == "" {
-		return ""
-	}
-
-	padding := strings.Repeat(" ", (len(l.timeFormat)+2)-len(timeStr))
-	return timeStr + padding
+func (l *Log) padTime(timeStr string) string {
+	return fmt.Sprintf("%-*s  ", len(l.timeFormat), timeStr)
 }
 
-func (l *Logr) padFile(file string) string {
+func (l *Log) padFile(file string) string {
 	if file == "" {
 		return ""
 	}
