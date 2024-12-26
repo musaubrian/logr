@@ -47,6 +47,7 @@ type Log struct {
 	timeFormat string
 	showFile   bool
 	saveToFile bool
+	useColor   bool
 }
 
 func New(minLevel ...LogLevel) *Log {
@@ -58,6 +59,18 @@ func New(minLevel ...LogLevel) *Log {
 		level:      minLevel[0],
 		timeFormat: "",
 		saveToFile: false,
+		useColor:   false,
+	}
+}
+
+// Show logs with color
+func (l *Log) WithColor() *Log {
+	return &Log{
+		Logger:     l.Logger,
+		level:      l.level,
+		timeFormat: l.timeFormat,
+		saveToFile: l.saveToFile,
+		useColor:   true,
 	}
 }
 
@@ -72,6 +85,7 @@ func (l *Log) WithTime(format ...string) *Log {
 		level:      l.level,
 		timeFormat: format[0],
 		saveToFile: l.saveToFile,
+		useColor:   l.useColor,
 	}
 }
 
@@ -90,11 +104,16 @@ func (l *Log) log(level LogLevel, colorCode int, label string, msg string) {
 
 	fileStr := getFileInfo(3)
 
-	l.Printf("%s%s %s%s",
-		bold(colorize(colorCode, paddedLabel)),
-		colorize(darkGray, fileStr),
-		colorize(darkGray, paddedTime),
-		msg)
+	if l.useColor {
+		l.Printf("%s%s %s%s",
+			bold(colorize(colorCode, paddedLabel)),
+			colorize(darkGray, fileStr),
+			colorize(darkGray, paddedTime),
+			msg)
+		return
+	}
+
+	l.Printf("%s%s %s%s", bold(paddedLabel), fileStr, paddedTime, msg)
 }
 
 func (l *Log) Info(msg string) {
@@ -143,12 +162,23 @@ func (l *Log) Logf(level LogLevel, format string, v ...any) {
 	paddedTime := l.padTime(timeStr)
 
 	fileStr := getFileInfo(2)
+	if l.useColor {
+		l.Printf("%s%s %s%s",
+			bold(colorize(colorCode, paddedLabel)),
+			colorize(darkGray, fileStr),
+			colorize(darkGray, paddedTime),
+			fmt.Sprintf(format, v...))
+
+		return
+	}
 
 	l.Printf("%s%s %s%s",
-		bold(colorize(colorCode, paddedLabel)),
-		colorize(darkGray, fileStr),
-		colorize(darkGray, paddedTime),
-		fmt.Sprintf(colorize(lightGray, format), v...))
+		bold(paddedLabel),
+		fileStr,
+		paddedTime,
+		fmt.Sprintf(format, v...),
+	)
+
 }
 func getFileInfo(skip int) string {
 	_, file, line, ok := runtime.Caller(skip)
