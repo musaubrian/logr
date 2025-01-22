@@ -26,7 +26,6 @@ const (
 	blueish   = 94
 	gray      = 97
 	lightGray = 37
-	darkGray  = 90
 	dimmed    = 2
 
 	labelWidth = 8
@@ -107,8 +106,8 @@ func (l *Log) log(level LogLevel, colorCode int, label string, msg string) {
 	if l.useColor {
 		l.Printf("%s%s %s%s",
 			bold(colorize(colorCode, paddedLabel)),
-			colorize(darkGray, fileStr),
-			colorize(darkGray, paddedTime),
+			colorize(gray, fileStr),
+			colorize(gray, paddedTime),
 			msg)
 		return
 	}
@@ -165,15 +164,15 @@ func (l *Log) Logf(level LogLevel, format string, v ...any) {
 	if l.useColor {
 		l.Printf("%s%s %s%s",
 			bold(colorize(colorCode, paddedLabel)),
-			colorize(darkGray, fileStr),
-			colorize(darkGray, paddedTime),
+			colorize(gray, fileStr),
+			colorize(gray, paddedTime),
 			fmt.Sprintf(format, v...))
 
 		return
 	}
 
 	l.Printf("%s%s %s%s",
-		bold(paddedLabel),
+		paddedLabel,
 		fileStr,
 		paddedTime,
 		fmt.Sprintf(format, v...),
